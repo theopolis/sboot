@@ -1,0 +1,25 @@
+diff --git a/Makefile b/Makefile
+index 328347d..1913503 100644
+--- a/Makefile
++++ b/Makefile
+@@ -312,7 +312,9 @@ LIBS-y += arch/powerpc/cpu/mpc8xxx/lib8xxx.o
+ endif
+ LIBS-y += drivers/rtc/librtc.o
+ LIBS-y += drivers/serial/libserial.o
+-LIBS-$(CONFIG_GENERIC_LPC_TPM) += drivers/tpm/libtpm.o
++LIBS-$(CONFIG_TPM) += drivers/tpm/libtpm.o
++LIBS-$(CONFIG_TPM) += lib/tlcl/libtlcl.o
++LIBS-$(CONFIG_SBOOT) += lib/sboot/libsboot.o
+ LIBS-y += drivers/twserial/libtws.o
+ LIBS-y += drivers/usb/eth/libusb_eth.o
+ LIBS-y += drivers/usb/gadget/libusb_gadget.o
+@@ -543,7 +545,8 @@ GEN_UBOOT = \
+ endif
+ 
+ $(obj)u-boot:	depend \
+-		$(SUBDIR_TOOLS) $(OBJS) $(LIBBOARD) $(LIBS) $(LDSCRIPT) $(obj)u-boot.lds
++		$(SUBDIR_TOOLS) $(OBJS) $(LIBBOARD) $(LIBS) $(LDSCRIPT) \
++		$(VBOOT_TARGET) $(obj)u-boot.lds
+ 		$(GEN_UBOOT)
+ ifeq ($(CONFIG_KALLSYMS),y)
+ 		smap=`$(call SYSTEM_MAP,$(obj)u-boot) | \

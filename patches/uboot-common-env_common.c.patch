@@ -1,0 +1,15 @@
+diff --git a/common/env_common.c b/common/env_common.c
+index 3d3cb70..d498344 100644
+--- a/common/env_common.c
++++ b/common/env_common.c
+@@ -143,6 +143,10 @@ int env_import(const char *buf, int check)
+ {
+ 	env_t *ep = (env_t *)buf;
+ 
++#if defined(CONFIG_SBOOT) && !defined(CONFIG_SBOOT_DISABLE_ENV_EXTEND)
++	sboot_extend_environment(buf, CONFIG_ENV_SIZE);
++#endif
++
+ 	if (check) {
+ 		uint32_t crc;
+ 

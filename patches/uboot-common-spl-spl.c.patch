@@ -1,0 +1,42 @@
+diff --git a/common/spl/spl.c b/common/spl/spl.c
+index 0d829c0..0a4d799 100644
+--- a/common/spl/spl.c
++++ b/common/spl/spl.c
+@@ -31,6 +31,7 @@
+ #include <i2c.h>
+ #include <image.h>
+ #include <malloc.h>
++#include <sboot.h>
+ #include <linux/compiler.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -59,7 +60,7 @@ inline void hang(void)
+  * Default function to determine if u-boot or the OS should
+  * be started. This implementation always returns 1.
+  *
+- * Please implement your own board specific funcion to do this.
++ * Please implement your own board specific function to do this.
+  *
+  * RETURN
+  * 0 to not start u-boot
+@@ -210,6 +211,20 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
+ 		hang();
+ 	}
+ 
++#ifdef CONFIG_SPL_SBOOT_SUPPORT
++#if !defined(CONFIG_SPL_MMC_SD_FAT_BOOT_DEVICE) || CONFIG_SPL_MMC_SD_FAT_BOOT_DEVICE == 0
++#warning "CONFIG_SPL_MMC_SD_FAT_BOOT_DEVICE may not be configured or may \
++ configured as the same device as the SPL image. If implementing a trusted \
++ or secured boot (with SBOOT) your SRTM (SPL) should be read from write \
++ protected storage."
++#endif
++	sboot_init();
++	spl_sboot_extend();
++
++	/* Assumes IH_OS_U_BOOT */
++	spl_sboot_check();
++#endif
++
+ 	switch (spl_image.os) {
+ 	case IH_OS_U_BOOT:
+ 		debug("Jumping to U-Boot\n");

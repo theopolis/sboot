@@ -1,0 +1,13 @@
+diff --git a/common/Makefile b/common/Makefile
+index eac6360..e3a38dd 100644
+--- a/common/Makefile
++++ b/common/Makefile
+@@ -159,6 +159,8 @@ COBJS-$(CONFIG_CMD_TERMINAL) += cmd_terminal.o
+ COBJS-$(CONFIG_CMD_TIME) += cmd_time.o
+ COBJS-$(CONFIG_SYS_HUSH_PARSER) += cmd_test.o
+ COBJS-$(CONFIG_CMD_TPM) += cmd_tpm.o
++COBJS-$(CONFIG_CMD_TPM_TLCL) += cmd_tpm_tlcl.o
++COBJS-$(CONFIG_CMD_SBOOT) += cmd_sboot.o
+ COBJS-$(CONFIG_CMD_TSI148) += cmd_tsi148.o
+ COBJS-$(CONFIG_CMD_UBI) += cmd_ubi.o
+ COBJS-$(CONFIG_CMD_UBIFS) += cmd_ubifs.o

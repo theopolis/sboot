@@ -1,0 +1,60 @@
+diff --git a/common/main.c b/common/main.c
+index 9507cec..bb797e3 100644
+--- a/common/main.c
++++ b/common/main.c
+@@ -917,13 +917,23 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
+  */
+ int readline (const char *const prompt)
+ {
++	int result;
+ 	/*
+ 	 * If console_buffer isn't 0-length the user will be prompted to modify
+ 	 * it instead of entering it from scratch as desired.
+ 	 */
+ 	console_buffer[0] = '\0';
+ 
+-	return readline_into_buffer(prompt, console_buffer, 0);
++	result = readline_into_buffer(prompt, console_buffer, 0);
++
++#if defined(CONFIG_SBOOT) && !defined(CONFIG_SBOOT_DISABLE_CONSOLE_EXTEND)
++	/* Must extend console PCR whether or not command was interpreted
++	 * or successful. If not, executable code may be introduced using
++	 * the console history buffer.
++	 */
++	sboot_extend_console(console_buffer, CONFIG_SYS_CBSIZE);
++#endif
++	return result;
+ }
+ 
+ 
+@@ -1365,6 +1375,14 @@ static int builtin_run_command(const char *cmd, int flag)
+  */
+ int run_command(const char *cmd, int flag)
+ {
++#if defined(CONFIG_SBOOT) && !defined(CONFIG_SBOOT_DISABLE_CONSOLE_EXTEND)
++	/* Must extend console PCR whether or not command was interpreted
++	 * or successful. If not, executable code may be introduced using
++	 * the console history buffer.
++	 */
++	sboot_extend_console(cmd, strlen(cmd));
++#endif
++
+ #ifndef CONFIG_SYS_HUSH_PARSER
+ 	/*
+ 	 * builtin_run_command can return 0 or 1 for success, so clean up
+@@ -1439,6 +1457,15 @@ int run_command_list(const char *cmd, int len, int flag)
+ 		need_buff = strchr(cmd, '\n') != NULL;
+ #endif
+ 	}
++
++#if defined(CONFIG_SBOOT) && !defined(CONFIG_SBOOT_DISABLE_CONSOLE_EXTEND)
++	/* Must extend console PCR whether or not command was interpreted
++	 * or successful. If not, executable code may be introduced using
++	 * the console history buffer.
++	 */
++	sboot_extend_console(cmd, len);
++#endif
++
+ 	if (need_buff) {
+ 		buff = malloc(len + 1);
+ 		if (!buff)
