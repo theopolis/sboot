@@ -1,0 +1,168 @@
+libSboot -- Standalone
+
+These libraries (libSboot, libTLCL) and TPM drivers provide a Secure Boot
+example for U-boot. A source tree with libSboot built into mainline U-Boot
+is available at https://github.com/theopolis/u-boot-sboot.
+
+Overview:
+=========
+
+libSboot provides an example 'Secured Boot' for U-Boot and a U-Boot Second
+Phase Loader (SPL). libSboot attempts to define an example of how a platform
+can measure a pre-OS boot environment, thus providing a capability to
+ensure that a libSboot-enforced OS is only loaded in an owner-authorized 
+fashion. A 'Secure Boot' concept is a common means to ensure platform security
+and integrity; understand that there are many implementations of a 'Secure
+Boot'. 
+
+The pre-boot environment is defined as:
+- The U-Boot binary loaded by a SPL
+- EEPROM defining platform identification and configuration
+- Environment data read from an initial external source
+- Environment variables set via the U-Boot console
+- Commands interpreted via the U-Boot console
+- Flat Device Tree files 
+- Initial Ram Disks and Ram Disks
+- An OS Kernel
+
+Currently libSboot does not require augmentation (signatures or keys) to
+data or configuration options for boot. It only requires patching U-Boot
+and SPL boot routines to measure and check platform state. This does not 
+provide the user with much robustness. A change to the pre-boot environment 
+will require interaction on the U-Boot console to 'reseal' the configuration. 
+A more robust implementation would apply signature checking to data and options
+to provide flexible updates to the pre-boot environment.
+
+Understanding the implementation of libSboot:
+
+libSboot uses a TPM v1.2 to implement a secure boot using a static root
+of trust measurement (SRTM). The static adjective implies a 'read-only' 
+attribute, meaning libSboot expects its initialization to occur from ROM code. 
+During this initialization libSboot performs a TPM_Start, TPM_SelfTest and 
+checks that the TPM is neither deactivated nor disabled. The TPM must have its
+NVRAM locked, meaning access control is enforced. Initialization then checks 
+each PCR used to measure the pre-boot environment and verifies they are reset.
+Finally Physical Presence is asserted to satisfy NVRAM read/write permissions.
+
+The sealed data for a securely measured pre-boot environment is stored in TPM
+NVRAM with a Physical Presence requirement for read and write. Note: the sealed 
+data is an encrypted blob, thus a Physical Presence requirement for reading is 
+not required. Though the Physical Presence requirement for writing is very 
+important! If arbitrary sealed data can be written, then an attacker can measure 
+and store from a compromised OS state. Because of this, libSboot must de-assert 
+Physical Presence and extend the PCRs with random data when libSboot finishes 
+measuring or encounters an error. 
+  
+libSboot uses two sealed blobs stored in TPM NVRAM, one measured for the 
+pre-execution of U-Boot, the other for the OS. This enables flexibility within 
+U-Boot to seal modifications to the pre-boot environment for the U-Boot environment, 
+U-Boot console usage, OS kernel, etc. Modifications to U-Boot are more difficult, 
+U-Boot can issue a re-seal of a new U-Boot binary, but first the PCR which 
+measured the running U-Boot must be reset. This requires an authenticated TPM_Reset 
+command. 
+
+libSboot will report to the console if an unseal fails, if libSboot is in 'enforce' 
+(see below) mode then a failed unseal will halt execution. This implementation does 
+not depend on the sealed and unsealed data (meaning we can seal well-known data), 
+it only depends on the TPM response (success/failure) of an unseal. Since libSboot 
+does not require authentication during initialization, subsequent initializations 
+will normally fail. There are several ways to assure successful subsequent 
+initializations: (1) build a method for authenticating a TPM owner within the SRTM; 
+(2) require hardware Physical Presence; (3) issue a TPM Reset before the OS reboots. 
+
+Setup:
+======
+
+1. A working TPM.
+2. Ownership of TPM; libSboot uses the Storage Root Key (SRK) for sealing 
+measurements; the TPM must be protected against a reset.
+3. TPM NVRAM locked.
+4. Two NVRAM defined indexes with Physical Presence required for Read/Write.
+5. Hardware write protection for the location of the SRTM (SPL).
+
+Configuration Options:
+======================
+
+- TPM Drivers
+
+  CONFIG_TPM
+
+  This will build libtpm, a TPM device will also need to be configured.
+
+  CONFIG_TPM_I2C_ATMEL
+
+  This selects a TPM device (Atmel's AT97SC3204T I2C TPM). A device on an
+  I2C bus also needs to know it's bus ID and address. By default the first (0)
+  I2C bus will be used.
+
+  CONFIG_TPM_I2C_BUS
+
+  For boards with multiple I2C buses, you may configure the bus number the
+  TPM device is connected on.
+
+  CONFIG_TPM_I2C_ADDR
+
+  The address of the TPM on the I2C bus, usually specific to the device.
+
+  CONFIG_CMD_TPM
+
+  Enable the 'tpm' command within the U-Boot shell. The command accepts
+  space-delimited characters to send to the TPM.
+
+- libTLCL (TPM Lite Library)
+  This library provide the necessary TPM 1.2 Commands required for libSboot.
+  
+  CONFIG_TLCL_SEAL
+
+  Adds TlclSeal, TlclUnseal and related methods to libTLCL.
+
+  CONFIG_CMD_TPM_TLCL
+
+  Enable the 'tpm_tlcl' command within the U-Boot shell. This command
+  includes methods for testing the TPM. Warning! Some commands set permanent
+  configuration options on the TPM.
+
+- libSboot
+
+  CONFIG_SBOOT
+
+  Adds libSboot to U-Boot.
+
+  CONFIG_SPL_SBOOT_SUPPORT
+
+  Adds libSboot to SPL.
+
+  CONFIG_SBOOT_UBOOT_SEAL_INDEX
+
+  Sets the NVRAM index to Seal/Unseal well-known blob data bound to the PCR
+  values for a known-secure state before executing U-Boot. This option
+  value is only used if CONFIG_SPL_SBOOT_SUPPORT is enabled.
+
+  CONFIG_SBOOT_IMAGE_SEAL_INDEX
+
+  Same as above, but for the state within U-Boot before executing an
+  OS (kernel or otherwise).
+
+  CONFIG_SBOOT_DISABLE_CONSOLE_EXTEND
+
+  Prevent libSboot from measuring U-Boot console commands.
+  (Not Recommended!)
+
+  CONFIG_SBOOT_DISABLE_ENV_EXTEND
+
+  Prevent libSboot from measuring U-Boot environments.
+  This includes an external environment store, uEnv.txt, and environment
+  variables set via the U-Boot shell (or other commands).
+  (Not Recommended!)
+
+  CONFIG_SBOOT_ENFORCE
+
+  This will cause libSboot to halt execution if it fails to unseal for 
+  U-Boot or the OS.
+
+Notes:
+======
+
+This documentation is a work-in-progress.
+
+
